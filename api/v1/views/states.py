@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """States API views."""
-from api.v1.views import app_views
 from flask import abort, jsonify, request
+from api.v1.views import app_views
 from models import storage
 from models.state import State
 
@@ -9,7 +9,7 @@ from models.state import State
 @app_views.route('/states', methods=['GET'], strict_slashes=False)
 def get_states():
     """Retrieves the list of all State objects."""
-    states = storage.all(State).values()
+    states = list(storage.all(State).values())
     return jsonify([state.to_dict() for state in states])
 
 
@@ -36,11 +36,13 @@ def delete_state(state_id):
 @app_views.route('/states', methods=['POST'], strict_slashes=False)
 def create_state():
     """Creates a State."""
-    if not request.get_json():
+    if not request.is_json:
         abort(400, description="Not a JSON")
-    if 'name' not in request.get_json():
+    data = request.get_json(silent=True)
+    if data is None:
+        abort(400, description="Not a JSON")
+    if 'name' not in data:
         abort(400, description="Missing name")
-    data = request.get_json()
     state = State(**data)
     state.save()
     return jsonify(state.to_dict()), 201
@@ -52,9 +54,11 @@ def update_state(state_id):
     state = storage.get(State, state_id)
     if not state:
         abort(404)
-    if not request.get_json():
+    if not request.is_json:
         abort(400, description="Not a JSON")
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if data is None:
+        abort(400, description="Not a JSON")
     for key, value in data.items():
         if key not in ['id', 'created_at', 'updated_at']:
             setattr(state, key, value)
